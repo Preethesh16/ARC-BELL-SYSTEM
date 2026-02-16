@@ -4,6 +4,7 @@
 #include <Firebase_ESP_Client.h>
 
 #define RELAY_PIN 0
+#define DEPARTMENT_ID "icbs"
 
 FirebaseData fbdo;
 FirebaseAuth auth;
@@ -57,10 +58,18 @@ void loop() {
 
     Serial.println("\n--- Firebase Poll ---");
 
-    // ===== Read Mode =====
-    Serial.print("Reading /bellSystem/mode ... ");
+    // Construct base path
+    String basePath = "/departments/";
+    basePath += DEPARTMENT_ID;
 
-    if (Firebase.RTDB.getString(&fbdo, "/bellSystem/mode")) {
+    // ===== Read Mode =====
+    String modePath = basePath + "/mode";
+
+    Serial.print("Reading ");
+    Serial.print(modePath);
+    Serial.print(" ... ");
+
+    if (Firebase.RTDB.getString(&fbdo, modePath.c_str())) {
       Serial.print("SUCCESS → ");
       Serial.println(fbdo.stringData());
     } 
@@ -70,9 +79,13 @@ void loop() {
     }
 
     // ===== Read manualRing =====
-    Serial.print("Reading /bellSystem/manualRing ... ");
+    String manualPath = basePath + "/manualRing";
 
-    if (Firebase.RTDB.getBool(&fbdo, "/bellSystem/manualRing")) {
+    Serial.print("Reading ");
+    Serial.print(manualPath);
+    Serial.print(" ... ");
+
+    if (Firebase.RTDB.getBool(&fbdo, manualPath.c_str())) {
 
       bool flag = fbdo.boolData();
 
@@ -93,7 +106,7 @@ void loop() {
 
         Serial.print("Resetting manualRing to false... ");
 
-        if (Firebase.RTDB.setBool(&fbdo, "/bellSystem/manualRing", false)) {
+        if (Firebase.RTDB.setBool(&fbdo, manualPath.c_str(), false)) {
           Serial.println("WRITE SUCCESS");
         } 
         else {
