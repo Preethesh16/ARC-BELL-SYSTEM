@@ -5,23 +5,79 @@
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 
-
 #define RELAY_PIN 0
 #define DEPARTMENT_ID "icbs"
+#define MAX_SCHEDULE 20
 
+// ===== Schedule Storage =====
+int scheduleTimes[MAX_SCHEDULE];
+int scheduleCount = 0;
+int lastTriggeredMinute = -1;
+String lastLoadedMode = "";
+
+// ===== Firebase =====
 FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
+
+// ===== NTP =====
 WiFiUDP ntpUDP;
-
-// IST offset = 5 hours 30 minutes
 const long utcOffsetInSeconds = 19800;
-
 NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 
+// Timers
+unsigned long lastFirebasePoll = 0;
+unsigned long lastTimeCheck = 0;
 
-unsigned long lastCheck = 0;
+// ===================================================
+void loadSchedule(String mode) {
 
+  scheduleCount = 0;
+
+  String path = "/departments/";
+  path += DEPARTMENT_ID;
+  path += "/schedules/";
+  path += mode;
+  path += "/times";
+
+  Serial.print("Loading schedule from ");
+  Serial.println(path);
+
+  if (Firebase.RTDB.getArray(&fbdo, path.c_str())) {
+
+    FirebaseJsonArray &arr = fbdo.jsonArray();
+    size_t len = arr.size();
+
+    for (size_t i = 0; i < len && i < MAX_SCHEDULE; i++) {
+      FirebaseJsonData result;
+      arr.get(result, i);
+      scheduleTimes[i] = result.intValue;
+      scheduleCount++;
+    }
+
+    Serial.print("Loaded ");
+    Serial.print(scheduleCount);
+    Serial.println(" schedule entries");
+
+  } else {
+    Serial.print("Schedule load FAIL → ");
+    Serial.println(fbdo.errorReason());
+  }
+}
+
+// ===================================================
+void triggerBell(int currentMinute) {
+
+  Serial.println("🔔 BELL TRIGGERED");
+
+  digitalWrite(RELAY_PIN, LOW);
+  delay(3000);
+  digitalWrite(RELAY_PIN, HIGH);
+
+  lastTriggeredMinute = currentMinute;
+}
+
+// ===================================================
 void setup() {
 
   Serial.begin(115200);
@@ -31,115 +87,89 @@ void setup() {
 
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, HIGH);
-  Serial.println("Relay default OFF");
 
-  // ---------- WIFI ----------
-  Serial.print("Connecting WiFi → ");
-  Serial.println(WIFI_SSID);
-
+  // WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
 
-  Serial.println("\nWiFi CONNECTED");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("\nWiFi Connected");
 
-  // ---------- FIREBASE ----------
-  Serial.println("Initializing Firebase (Legacy Token)...");
-
+  // Firebase
   config.database_url = DATABASE_URL;
   config.signer.tokens.legacy_token = FIREBASE_LEGACY_TOKEN;
-
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
 
-  Serial.println("Firebase initialized successfully");
-  // -------- NTP --------
-  Serial.println("Starting NTP...");
+  // NTP
   timeClient.begin();
   timeClient.update();
-
-  Serial.print("Current Time: ");
-  Serial.println(timeClient.getFormattedTime());
-
 }
 
+// ===================================================
 void loop() {
-  
-  if (millis() - lastCheck > 5000) {
-    
-    lastCheck = millis();
+
+  // ==========================================
+  // TIME CHECK EVERY SECOND
+  // ==========================================
+  if (millis() - lastTimeCheck > 1000) {
+
+    lastTimeCheck = millis();
     timeClient.update();
 
-    Serial.print("Current IST Time: ");
-    Serial.println(timeClient.getFormattedTime());
+    int hours = timeClient.getHours();
+    int minutes = timeClient.getMinutes();
+    int currentMinute = hours * 60 + minutes;
 
-    Serial.println("\n--- Firebase Poll ---");
+    // Check schedule match
+    for (int i = 0; i < scheduleCount; i++) {
 
-    // Construct base path
+      if (currentMinute == scheduleTimes[i] &&
+          lastTriggeredMinute != currentMinute) {
+
+        triggerBell(currentMinute);
+      }
+    }
+  }
+
+  // ==========================================
+  // FIREBASE POLL EVERY 30 SECONDS
+  // ==========================================
+  if (millis() - lastFirebasePoll > 30000) {
+
+    lastFirebasePoll = millis();
+
     String basePath = "/departments/";
     basePath += DEPARTMENT_ID;
 
-    // ===== Read Mode =====
+    // Read mode
     String modePath = basePath + "/mode";
-
-    Serial.print("Reading ");
-    Serial.print(modePath);
-    Serial.print(" ... ");
-
     if (Firebase.RTDB.getString(&fbdo, modePath.c_str())) {
-      Serial.print("SUCCESS → ");
-      Serial.println(fbdo.stringData());
-    } 
-    else {
-      Serial.print("FAIL → ");
-      Serial.println(fbdo.errorReason());
+
+      String currentMode = fbdo.stringData();
+
+      if (currentMode != lastLoadedMode) {
+        lastLoadedMode = currentMode;
+        loadSchedule(currentMode);
+      }
     }
 
-    // ===== Read manualRing =====
+    // Manual Ring
     String manualPath = basePath + "/manualRing";
-
-    Serial.print("Reading ");
-    Serial.print(manualPath);
-    Serial.print(" ... ");
-
     if (Firebase.RTDB.getBool(&fbdo, manualPath.c_str())) {
 
-      bool flag = fbdo.boolData();
+      if (fbdo.boolData()) {
 
-      Serial.print("SUCCESS → ");
-      Serial.println(flag ? "true" : "false");
+        int hours = timeClient.getHours();
+        int minutes = timeClient.getMinutes();
+        int currentMinute = hours * 60 + minutes;
 
-      if (flag) {
+        triggerBell(currentMinute);
 
-        Serial.println("ACTION: Trigger relay");
-
-        digitalWrite(RELAY_PIN, LOW);
-        Serial.println("Relay ON");
-
-        delay(3000);
-
-        digitalWrite(RELAY_PIN, HIGH);
-        Serial.println("Relay OFF");
-
-        Serial.print("Resetting manualRing to false... ");
-
-        if (Firebase.RTDB.setBool(&fbdo, manualPath.c_str(), false)) {
-          Serial.println("WRITE SUCCESS");
-        } 
-        else {
-          Serial.print("WRITE FAIL → ");
-          Serial.println(fbdo.errorReason());
-        }
+        Firebase.RTDB.setBool(&fbdo, manualPath.c_str(), false);
       }
-    } 
-    else {
-      Serial.print("FAIL → ");
-      Serial.println(fbdo.errorReason());
     }
   }
 }
