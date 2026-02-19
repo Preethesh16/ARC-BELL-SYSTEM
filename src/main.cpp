@@ -9,26 +9,39 @@
 #define DEPARTMENT_ID "icbs"
 #define MAX_SCHEDULE 20
 
-// ===== Schedule Storage =====
+// =============================
+// Schedule Storage
+// =============================
 int scheduleTimes[MAX_SCHEDULE];
 int scheduleCount = 0;
 int lastTriggeredMinute = -1;
 String lastLoadedMode = "";
 
-// ===== Firebase =====
+// =============================
+// Firebase
+// =============================
 FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
 
-// ===== NTP =====
+// =============================
+// NTP
+// =============================
 WiFiUDP ntpUDP;
 const long utcOffsetInSeconds = 19800;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 
+// =============================
 // Timers
-unsigned long lastFirebasePoll = 0;
+// =============================
+unsigned long lastModePoll = 0;
+unsigned long lastManualPoll = 0;
 unsigned long lastTimeCheck = 0;
+unsigned long lastNtpUpdate = 0;
+unsigned long lastScheduleReload = 0;   // NEW
 
+// ===================================================
+// LOAD SCHEDULE FROM FIREBASE
 // ===================================================
 void loadSchedule(String mode) {
 
@@ -60,23 +73,27 @@ void loadSchedule(String mode) {
     Serial.println(" schedule entries");
 
   } else {
-    Serial.print("Schedule load FAIL → ");
+    Serial.println("Schedule load FAILED");
     Serial.println(fbdo.errorReason());
   }
 }
 
+// ===================================================
+// TRIGGER BELL
 // ===================================================
 void triggerBell(int currentMinute) {
 
   Serial.println("🔔 BELL TRIGGERED");
 
   digitalWrite(RELAY_PIN, LOW);
-  delay(3000);
+  delay(5000);
   digitalWrite(RELAY_PIN, HIGH);
 
   lastTriggeredMinute = currentMinute;
 }
 
+// ===================================================
+// SETUP
 // ===================================================
 void setup() {
 
@@ -94,7 +111,6 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
-
   Serial.println("\nWiFi Connected");
 
   // Firebase
@@ -106,18 +122,38 @@ void setup() {
   // NTP
   timeClient.begin();
   timeClient.update();
+  lastNtpUpdate = millis();
+
+  // Load schedule at boot
+  String basePath = "/departments/";
+  basePath += DEPARTMENT_ID;
+  String modePath = basePath + "/mode";
+
+  if (Firebase.RTDB.getString(&fbdo, modePath.c_str())) {
+    lastLoadedMode = fbdo.stringData();
+    loadSchedule(lastLoadedMode);
+  }
+
+  lastScheduleReload = millis();
 }
 
 // ===================================================
+// LOOP
+// ===================================================
 void loop() {
 
-  // ==========================================
-  // TIME CHECK EVERY SECOND
-  // ==========================================
+  // =============================================
+  // TIME CHECK — every 1 second
+  // =============================================
   if (millis() - lastTimeCheck > 1000) {
 
     lastTimeCheck = millis();
-    timeClient.update();
+
+    // NTP update every 60 seconds
+    if (millis() - lastNtpUpdate > 60000) {
+      timeClient.update();
+      lastNtpUpdate = millis();
+    }
 
     int hours = timeClient.getHours();
     int minutes = timeClient.getMinutes();
@@ -134,18 +170,17 @@ void loop() {
     }
   }
 
-  // ==========================================
-  // FIREBASE POLL EVERY 30 SECONDS
-  // ==========================================
-  if (millis() - lastFirebasePoll > 30000) {
+  // =============================================
+  // MODE CHECK — every 30 sec
+  // =============================================
+  if (millis() - lastModePoll > 30000) {
 
-    lastFirebasePoll = millis();
+    lastModePoll = millis();
 
     String basePath = "/departments/";
     basePath += DEPARTMENT_ID;
-
-    // Read mode
     String modePath = basePath + "/mode";
+
     if (Firebase.RTDB.getString(&fbdo, modePath.c_str())) {
 
       String currentMode = fbdo.stringData();
@@ -155,9 +190,31 @@ void loop() {
         loadSchedule(currentMode);
       }
     }
+  }
 
-    // Manual Ring
-    String manualPath = basePath + "/manualRing";
+  // =============================================
+  // SCHEDULE RELOAD — every 60 sec (NEW)
+  // =============================================
+  if (millis() - lastScheduleReload > 60000) {
+
+    lastScheduleReload = millis();
+
+    if (lastLoadedMode != "") {
+      loadSchedule(lastLoadedMode);
+    }
+  }
+
+  // =============================================
+  // MANUAL CHECK — every 5 sec
+  // =============================================
+  if (millis() - lastManualPoll > 5000) {
+
+    lastManualPoll = millis();
+
+    String manualPath = "/departments/";
+    manualPath += DEPARTMENT_ID;
+    manualPath += "/manualRing";
+
     if (Firebase.RTDB.getBool(&fbdo, manualPath.c_str())) {
 
       if (fbdo.boolData()) {
