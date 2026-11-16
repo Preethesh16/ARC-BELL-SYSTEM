@@ -1,0 +1,95 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "sparkProvisioning": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')"
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) && !data.exists() && newData.hasChildren(['role', 'managedDepartment', 'departments'])",
+        "role": {
+          ".validate": "newData.val() === 'secretary'"
+        },
+        "managedDepartment": {
+          ".validate": "newData.isString() && newData.val().matches(/^dept[1-9][0-9]{0,11}$/) && root.child('departments').child(newData.val()).child('name').exists() && newData.parent().child('departments').child(newData.val()).val() === true && newData.parent().child('departmentGeneration').val() === root.child('departments').child(newData.val()).child('generation').val()"
+        },
+        "departments": {
+          "$id": {
+            ".validate": "newData.val() === true && $id === newData.parent().parent().child('managedDepartment').val()"
+          }
+        },
+        "$other": {
+          ".validate": false
+        },
+        "departmentGeneration": {
+          ".validate": "newData.isString() && newData.val().matches(/^[0-9a-f]{32}$/)"
+        }
+      }
+    },
+    "departments": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')",
+      "$dept": {
+        ".read": "((auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true && root.child('users').child(auth.uid).child('managedDepartment').val() === $dept && root.child('users').child(auth.uid).child('departmentGeneration').val() === root.child('departments').child($dept).child('generation').val())) && $dept.matches(/^dept[1-9][0-9]{0,11}$/) && !data.child('deleted').exists()",
+        ".write": "((auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) && $dept.matches(/^dept[1-9][0-9]{0,11}$/) && !data.exists() && newData.hasChildren(['name','mode','config']) && newData.child('mode').val() === 'college' && !newData.child('manualRing').exists() && !newData.child('schedules').exists() && !newData.child('deleted').exists() && newData.child('generation').isString()) || ((auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) && $dept.matches(/^dept[1-9][0-9]{0,11}$/) && data.child('name').isString() && !data.child('deleted').exists() && data.child('manualRing').val() !== true && auth.token.firebase.sign_in_provider === 'password' && now >= auth.token.auth_time * 1000 && now - auth.token.auth_time * 1000 <= 120000 && newData.child('deleted').val() === true && !newData.child('name').exists() && !newData.child('config').exists() && !newData.child('mode').exists() && !newData.child('manualRing').exists() && !newData.child('schedules').exists() && !newData.child('generation').exists())",
+        "name": {
+          ".write": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) && data.exists() && newData.exists() && $dept.matches(/^dept[1-9][0-9]{0,11}$/)",
+          ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (newData.isString() && newData.val().length > 0 && newData.val().length <= 80)"
+        },
+        "config": {
+          ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (newData.hasChildren(['ringDurationSec','timezone']))",
+          "ringDurationSec": {
+            ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (newData.val() === 5)"
+          },
+          "timezone": {
+            ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (newData.val() === 'IST')"
+          },
+          "$other": {
+            ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (false)"
+          }
+        },
+        "mode": {
+          ".write": "data.parent().child('name').isString() && newData.exists() && ((auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true && root.child('users').child(auth.uid).child('managedDepartment').val() === $dept && root.child('users').child(auth.uid).child('departmentGeneration').val() === root.child('departments').child($dept).child('generation').val())) && $dept.matches(/^dept[1-9][0-9]{0,11}$/)",
+          ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (newData.val() === 'college' || newData.val() === 'exam' || newData.val() === 'holiday')"
+        },
+        "manualRing": {
+          ".write": "data.parent().child('name').isString() && ((auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true && root.child('users').child(auth.uid).child('managedDepartment').val() === $dept && root.child('users').child(auth.uid).child('departmentGeneration').val() === root.child('departments').child($dept).child('generation').val())) && $dept.matches(/^dept[1-9][0-9]{0,11}$/)",
+          ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (newData.isBoolean())"
+        },
+        "schedules": {
+          "$mode": {
+            "times": {
+              ".write": "data.parent().parent().parent().child('name').isString() && ((auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true && root.child('users').child(auth.uid).child('managedDepartment').val() === $dept && root.child('users').child(auth.uid).child('departmentGeneration').val() === root.child('departments').child($dept).child('generation').val())) && ($mode === 'college' || $mode === 'exam' || $mode === 'holiday') && $dept.matches(/^dept[1-9][0-9]{0,11}$/)",
+              ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (newData.hasChildren())",
+              "$index": {
+                ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (newData.isNumber() && newData.val() >= 0 && newData.val() < 1440 && newData.val() % 1 === 0)"
+              }
+            }
+          }
+        },
+        "$other": {
+          ".validate": "!$dept.matches(/^dept[1-9][0-9]{0,11}$/) || (false)"
+        },
+        "deleted": {
+          ".validate": "newData.val() === true"
+        },
+        "generation": {
+          ".validate": "newData.isString() && newData.val().matches(/^[0-9a-f]{32}$/)"
+        }
+      },
+      "icbs": {
+        ".read": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child('icbs').val() === true && !root.child('users').child(auth.uid).child('managedDepartment').exists())",
+        "mode": {
+          ".write": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child('icbs').val() === true && !root.child('users').child(auth.uid).child('managedDepartment').exists())"
+        },
+        "manualRing": {
+          ".write": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child('icbs').val() === true && !root.child('users').child(auth.uid).child('managedDepartment').exists())"
+        },
+        "schedules": {
+          ".write": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child('icbs').val() === true && !root.child('users').child(auth.uid).child('managedDepartment').exists())"
+        }
+      }
+    }
+  }
+}

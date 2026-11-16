@@ -1,0 +1,50 @@
+{
+  "rules": {
+    "managedDepartments": {
+      "$dept": {
+        ".read": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true)",
+        "schedules": {
+          "$mode": {
+            "times": {
+              "$index": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1440 && newData.val() % 1 === 0"
+              },
+              ".write": "(data.parent().parent().parent().child('name').isString() && ((auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true))) && ($mode === 'college' || $mode === 'exam' || $mode === 'holiday')",
+              ".validate": "newData.hasChildren()"
+            }
+          }
+        },
+        "mode": {
+          ".write": "data.parent().child('name').isString() && ((auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true))",
+          ".validate": "newData.val() === 'college' || newData.val() === 'exam' || newData.val() === 'holiday'"
+        },
+        "manualRing": {
+          ".write": "data.parent().child('name').isString() && ((auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true))",
+          ".validate": "newData.isBoolean()"
+        }
+      },
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')"
+    },
+    "users": {
+      "$uid": {
+        ".write": false,
+        ".read": "auth != null && auth.uid === $uid"
+      }
+    },
+    "departments": {
+      "$dept": {
+        ".read": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true)",
+        "schedules": {
+          ".write": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true)"
+        },
+        "mode": {
+          ".write": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true)"
+        },
+        "manualRing": {
+          ".write": "(auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('departments').child($dept).val() === true)"
+        }
+      },
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')"
+    }
+  }
+}

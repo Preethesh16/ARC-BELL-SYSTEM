@@ -1,0 +1,10 @@
+{
+  "functions": {"source": "functions", "runtime": "nodejs22"},
+  "database": {"rules": "database.emulator.rules.json"},
+  "emulators": {
+    "auth": {"host": "127.0.0.1", "port": 9099},
+    "database": {"host": "127.0.0.1", "port": 9000},
+    "functions": {"host": "127.0.0.1", "port": 5001},
+    "ui": {"enabled": false}
+  }
+}

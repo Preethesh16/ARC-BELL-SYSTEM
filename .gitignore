@@ -1,144 +1,37 @@
-# ==============================
-# 🔐 Security / Secrets
-# ==============================
-
-# Firebase
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
-lib/firebase_options.dart
-
-# Environment files
-.env
-.env.*
-key.properties
+# Local configuration and credentials
+**/secrets.h
+**/secrets.local.h
+**/.env
+**/.env.*
+**/.firebaserc
+**/firebase_options.dart
+**/google-services.json
+**/GoogleService-Info.plist
+**/serviceAccount*.json
+**/*service-account*.json
+**/*firebase-adminsdk*.json
+**/*-rtdb-export*.json
+*.pfx
+*.p12
 *.jks
 *.keystore
+*.key
+*.pem
+key.properties
 
-# Firebase debug logs
-firebase-debug.log
-firebase-debug.*.log
-crashlytics-build.properties
-
-
-# ==============================
-# 🧠 IDE & Editor
-# ==============================
-
-# IntelliJ / Android Studio
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# VS Code (uncomment if you don’t want it tracked)
-# .vscode/
-
-# Misc editors
-*.swp
-*.swo
-*.tmp
-*.bak
-
-
-# ==============================
-# 🗑 System Files
-# ==============================
-
-.DS_Store
-Thumbs.db
-.atom/
-.buildlog/
-.history
-.svn/
-migrate_working_dir/
-
-
-# ==============================
-# 🐦 Flutter / Dart
-# ==============================
-
+# Build outputs, caches and diagnostics
 .dart_tool/
-.packages
-.pub/
-.pub-cache/
-.flutter-plugins
-.flutter-plugins-dependencies
-coverage/
+.flutter-plugins*
+.idea/
+.vscode/
+.firebase/
+.pio/
 build/
-
-# Generated docs
-**/doc/api/
-**/ios/Flutter/.last_build_id
-
-# Generated localization
-lib/generated/
-
-
-# ==============================
-# 🤖 Android
-# ==============================
-
-.gradle/
-local.properties
-captures/
-.externalNativeBuild/
-.cxx/
-android/app/.cxx/
-
-# Build outputs
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-
-# ==============================
-# 🍎 iOS
-# ==============================
-
-ios/Pods/
-ios/.symlinks/
-ios/Flutter/Flutter.framework
-ios/Flutter/Flutter.podspec
-ios/ServiceDefinitions.json
-ios/Runner/GeneratedPluginRegistrant.*
-
-
-# ==============================
-# 🍎 macOS
-# ==============================
-
-macos/Pods/
-macos/Flutter/GeneratedPluginRegistrant.swift
-
-
-# ==============================
-# 🪟 Windows
-# ==============================
-
-windows/flutter/ephemeral/
-
-
-# ==============================
-# 🐧 Linux
-# ==============================
-
-linux/flutter/ephemeral/
-
-
-# ==============================
-# 🌐 Web
-# ==============================
-
-web/build/
-
-
-# ==============================
-# 🧾 Misc
-# ==============================
-
-*.class
+node_modules/
+coverage/
 *.log
-*.pyc
-*.deb
-app.*.symbols
-app.*.map.json
+*.msix
+*.msixbundle
+*.zip
+Thumbs.db
+.DS_Store
